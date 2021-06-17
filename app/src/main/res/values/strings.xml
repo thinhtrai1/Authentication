@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Authentication</string>
+    <string name="question">%1$d x %2$d = ?</string>
+    <string name="start">Start</string>
+    <string name="cancel">Cancel</string>
+</resources>
