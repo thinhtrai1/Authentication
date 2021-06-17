@@ -51,13 +51,13 @@ class MainActivity : AppCompatActivity() {
                 .build()
         )
     }
-    private val mCountDownTimer = object : CountDownTimer(6000, 100) {
+    private val mCountDownTimer = object : CountDownTimer(5000, 50) {
         override fun onFinish() {
             checkAnswer(-1)
         }
 
         override fun onTick(millisUntilFinished: Long) {
-            mBinding.progressBar.progress = (millisUntilFinished / 100).toInt()
+            mBinding.progressBar.progress = (millisUntilFinished / 50).toInt()
         }
     }
     private val mRankingListener = object : ValueEventListener {
@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         if (answer == mQuestionAnswer) {
             mUser.totalTrue += 1
         }
-        if (mUser.totalPlay > 10) {
+        if (mUser.totalPlay > 9) {
             mUser.score = (mUser.totalTrue * 10000F / mUser.totalPlay).roundToInt() / 100F
         }
         mFirebaseDatabase.child(mUserId).setValue(mUser)
