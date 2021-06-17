@@ -14,7 +14,6 @@ import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.BaseAdapter
 import android.widget.ListView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintSet
@@ -197,7 +196,6 @@ class MainActivity : AppCompatActivity() {
         mUserId = googleUser.uid
         mFirebaseDatabase.child(mUserId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@MainActivity, error.message, Toast.LENGTH_SHORT).show()
             }
 
             override fun onDataChange(snapshot: DataSnapshot) {
