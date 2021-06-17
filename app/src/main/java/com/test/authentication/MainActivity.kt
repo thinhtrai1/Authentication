@@ -2,6 +2,7 @@ package com.test.authentication
 
 import android.app.Dialog
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.transition.ChangeBounds
@@ -23,10 +24,13 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.database.*
-import com.squareup.picasso.Picasso
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.test.authentication.databinding.ActivityMainBinding
 import com.test.authentication.databinding.ItemRankingBinding
+import java.net.URL
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
@@ -218,9 +222,6 @@ class MainActivity : AppCompatActivity() {
         mBinding.tvEmail.text = mUser.email
         mBinding.tvPhone.text = mUser.phone
         mBinding.tvScore.text = mUser.score.toString()
-        if (mUser.image != null) {
-            Picasso.get().load(mUser.image).fit().centerCrop().into(mBinding.imvAvatar)
-        }
         with(ConstraintSet()) {
             clone(mBinding.layoutContainer)
             clear(R.id.btnSignIn, ConstraintSet.START)
@@ -232,17 +233,14 @@ class MainActivity : AppCompatActivity() {
             applyTo(mBinding.layoutContainer)
             TransitionManager.beginDelayedTransition(mBinding.layoutContainer, ChangeBounds().setInterpolator(OvershootInterpolator()))
         }
-    }
-
-    private class User {
-        var name: String? = ""
-        var email: String? = ""
-        var phone: String? = ""
-        var image: String? = ""
-        var totalPlay = 0
-        var totalTrue = 0
-        var score = 0F
-        var loginLastTime = 0L
+        if (mUser.image != null) {
+            Thread {
+                val bmp = BitmapFactory.decodeStream(URL(mUser.image).openConnection().getInputStream())
+                runOnUiThread {
+                    mBinding.imvAvatar.setImageBitmap(bmp)
+                }
+            }.start()
+        }
     }
 
     override fun onDestroy() {
