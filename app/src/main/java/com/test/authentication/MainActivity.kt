@@ -2,6 +2,7 @@ package com.test.authentication
 
 import android.app.Dialog
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.transition.ChangeBounds
@@ -13,7 +14,6 @@ import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.BaseAdapter
 import android.widget.ListView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintSet
@@ -23,10 +23,13 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.database.*
-import com.squareup.picasso.Picasso
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.test.authentication.databinding.ActivityMainBinding
 import com.test.authentication.databinding.ItemRankingBinding
+import java.net.URL
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
@@ -37,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mUserId: String
     private val mTopRanking = ArrayList<User>()
     private val mFirebaseDatabase = FirebaseDatabase.getInstance("https://my-authentication-7ff04-default-rtdb.asia-southeast1.firebasedatabase.app").reference.child("users")
+    private val mFirebaseAuth = FirebaseAuth.getInstance()
     private val mRandom = Random()
     private var mQuestionAnswer = 0
     private val mGoogleSignInClient by lazy {
@@ -47,13 +51,13 @@ class MainActivity : AppCompatActivity() {
                 .build()
         )
     }
-    private val mCountDownTimer = object : CountDownTimer(6000, 100) {
+    private val mCountDownTimer = object : CountDownTimer(5000, 50) {
         override fun onFinish() {
             checkAnswer(-1)
         }
 
         override fun onTick(millisUntilFinished: Long) {
-            mBinding.progressBar.progress = (millisUntilFinished / 100).toInt()
+            mBinding.progressBar.progress = (millisUntilFinished / 50).toInt()
         }
     }
     private val mRankingListener = object : ValueEventListener {
@@ -105,6 +109,15 @@ class MainActivity : AppCompatActivity() {
             btnRanking.setOnClickListener {
                 showRanking()
             }
+            btnLogout.setOnClickListener {
+                mGoogleSignInClient.signOut()
+                mFirebaseAuth.signOut()
+                recreate()
+            }
+        }
+
+        mFirebaseAuth.currentUser?.let { user ->
+            getInformation(user)
         }
     }
 
@@ -113,7 +126,9 @@ class MainActivity : AppCompatActivity() {
         if (answer == mQuestionAnswer) {
             mUser.totalTrue += 1
         }
-        mUser.score = (mUser.totalTrue * 10000F / mUser.totalPlay).roundToInt() / 100F
+        if (mUser.totalPlay > 9) {
+            mUser.score = (mUser.totalTrue * 10000F / mUser.totalPlay).roundToInt() / 100F
+        }
         mFirebaseDatabase.child(mUserId).setValue(mUser)
         mBinding.tvScore.text = mUser.score.toString()
         mCountDownTimer.cancel()
@@ -129,19 +144,35 @@ class MainActivity : AppCompatActivity() {
         when (mQuestionAnswer) {
             0 -> {
                 mBinding.tvA.text = (a * b).toString()
-                mBinding.tvB.text = (a * b + (mRandom.nextInt(3) + 1) * 10).toString()
-                mBinding.tvC.text = (a * b + (mRandom.nextInt(2) + 1) * 100).toString()
+                mBinding.tvB.text = differences10(a * b).toString()
+                mBinding.tvC.text = differences100(a * b).toString()
             }
             1 -> {
-                mBinding.tvA.text = (a * b + (mRandom.nextInt(3) + 1) * 10).toString()
+                mBinding.tvA.text = differences10(a * b).toString()
                 mBinding.tvB.text = (a * b).toString()
-                mBinding.tvC.text = (a * b + (mRandom.nextInt(2) + 1) * 100).toString()
+                mBinding.tvC.text = differences100(a * b).toString()
             }
             2 -> {
-                mBinding.tvA.text = (a * b + (mRandom.nextInt(3) + 1) * 10).toString()
-                mBinding.tvB.text = (a * b + (mRandom.nextInt(2) + 1) * 100).toString()
+                mBinding.tvA.text = differences10(a * b).toString()
+                mBinding.tvB.text = differences100(a * b).toString()
                 mBinding.tvC.text = (a * b).toString()
             }
+        }
+    }
+
+    private fun differences10(input: Int): Int {
+        return if (mRandom.nextInt(2) == 0) {
+            input + (mRandom.nextInt(3) + 1) * 10
+        } else {
+            input - (mRandom.nextInt(3) + 1) * 10
+        }
+    }
+
+    private fun differences100(input: Int): Int {
+        return if (mRandom.nextInt(2) == 0) {
+            input + (mRandom.nextInt(2) + 1) * 100
+        } else {
+            input - (mRandom.nextInt(2) + 1) * 100
         }
     }
 
@@ -150,10 +181,9 @@ class MainActivity : AppCompatActivity() {
         try {
             val account = data.getResult(ApiException::class.java)!!
             val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
-            val auth = FirebaseAuth.getInstance()
-            auth.signInWithCredential(credential).addOnCompleteListener(this) { task ->
+            mFirebaseAuth.signInWithCredential(credential).addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    auth.currentUser?.let { user ->
+                    mFirebaseAuth.currentUser?.let { user ->
                         getInformation(user)
                     }
                 }
@@ -166,7 +196,6 @@ class MainActivity : AppCompatActivity() {
         mUserId = googleUser.uid
         mFirebaseDatabase.child(mUserId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@MainActivity, error.message, Toast.LENGTH_SHORT).show()
             }
 
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -191,35 +220,30 @@ class MainActivity : AppCompatActivity() {
         mBinding.tvEmail.text = mUser.email
         mBinding.tvPhone.text = mUser.phone
         mBinding.tvScore.text = mUser.score.toString()
-        if (mUser.image != null) {
-            Picasso.get().load(mUser.image).fit().centerCrop().into(mBinding.imvAvatar)
-        }
         with(ConstraintSet()) {
             clone(mBinding.layoutContainer)
             clear(R.id.btnSignIn, ConstraintSet.START)
             connect(R.id.btnSignIn, ConstraintSet.END, R.id.layoutContainer, ConstraintSet.START)
             connect(R.id.btnStart, ConstraintSet.END, R.id.layoutContainer, ConstraintSet.END)
             connect(R.id.btnStart, ConstraintSet.START, R.id.layoutContainer, ConstraintSet.START)
+            clear(R.id.layoutProfile, ConstraintSet.BOTTOM)
+            connect(R.id.layoutProfile, ConstraintSet.TOP, R.id.layoutContainer, ConstraintSet.TOP)
             applyTo(mBinding.layoutContainer)
             TransitionManager.beginDelayedTransition(mBinding.layoutContainer, ChangeBounds().setInterpolator(OvershootInterpolator()))
         }
-    }
-
-    private class User {
-        var name: String? = ""
-        var email: String? = ""
-        var phone: String? = ""
-        var image: String? = ""
-        var totalPlay = 0
-        var totalTrue = 0
-        var score = 0F
-        var loginLastTime = 0L
+        if (mUser.image != null) {
+            Thread {
+                val bmp = BitmapFactory.decodeStream(URL(mUser.image).openConnection().getInputStream())
+                runOnUiThread {
+                    mBinding.imvAvatar.setImageBitmap(bmp)
+                }
+            }.start()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         mCountDownTimer.cancel()
-        mGoogleSignInClient.signOut()
         mFirebaseDatabase.removeEventListener(mRankingListener)
     }
 
@@ -243,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                     root.tag = ViewHolder(this)
                 }
             }
-            binding.tvNumber.text = position.toString()
+            binding.tvNumber.text = (position + 1).toString()
             binding.tvName.text = mUsers[position].name
             binding.tvScore.text = mUsers[position].score.toString()
             return binding.root
